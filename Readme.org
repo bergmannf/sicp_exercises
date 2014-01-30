@@ -1,0 +1,9 @@
+* Structure and interpretation of computer programs
+
+  This repository holds the solutions to the exercise of the SICP
+  book, while working through it.
+
+  It uses the [[http://racket-lang.org/][Racket]] dialect of scheme.
+** Chapter 1:
+   - According to exercise 1.5 =Racket= is an applicative-order
+     interpreter as it will run into endless recursion issues.
