@@ -284,9 +284,9 @@
 
 (define (smallest-divisor n) (find-divisor n 2))
 (define (find-divisor n test-divisor)
- (cond ((> (square test-divisor) n) n)
-       ((divides? test-divisor n) test-divisor)
-       (else (find-divisor n (+ test-divisor 1)))))
+  (cond ((> (square test-divisor) n) n)
+        ((divides? test-divisor n) test-divisor)
+        (else (find-divisor n (+ test-divisor 1)))))
 (define (divides? a b) (= (remainder b a) 0))
 
 (smallest-divisor 199)
@@ -392,3 +392,213 @@
 
 ;; The output greatly depends on the number of times we require the
 ;; fermat test to run.
+
+;; 1.25
+
+;; In theory: it will work.
+;; 
+;; In practice: it will first compute the exponential which will result
+;; in big arithmetic operations being performed, which will in turn be a
+;; lot slower than using the special procedure.
+
+;; 1.26
+
+;; Calling (expmod a b m) twice will result in every computation being
+;; performed twice in the even? case (for every step of the way!)
+;; This will loose all benefits of the fast-expt trick in that
+;; replaces the operation a^n with a single operation
+;; (a ^ (/ n 2)) ^ 2
+
+;; 1.27
+
+(define carmichael-numbers '(561 1105 1729 2465 2821 6601))
+
+(define (full-fermat-prime? n)
+  (define (expmod base exp m)
+    (cond ((= exp 0)
+           1)
+          ((even? exp)
+           (remainder
+            (square
+             (expmod base (/ exp 2) m))
+            m))
+          (else
+           (remainder
+            (* base
+               (expmod base (- exp 1) m))
+            m))))
+  (define (full-fermat-aux n a)
+    (cond ((= n a) #t)
+          ((= (expmod a n n) (remainder a n))
+           (full-fermat-aux n (+ a 1)))
+          (else #f)))
+  (full-fermat-aux n 2))
+
+(map full-fermat-prime? carmichael-numbers)
+
+;; 1.28
+
+(define (miller-rabin n)
+  (define (miller-exp-mod base exp n)
+    (cond ((= exp 0) 1)
+          ((even? exp)
+           (let* ((num (square (miller-exp-mod base (/ exp 2) n)))
+                  (rem (remainder num n)))
+             (if (and (not (= num 1))
+                      (not (= num (- n 1)))
+                      (= num (remainder 1 n)))
+                 0
+                 rem)))
+           (else (remainder (* base (miller-exp-mod base (- exp 1) n)) n))))
+    (define (miller-rabin-aux n a)
+      (cond ((= a (- n 1))
+             #t)
+            ((= (miller-exp-mod a (- n 1) n) 0)
+             #f)
+            ((not (= (miller-exp-mod a (- n 1) n) (remainder 1 n)))
+             #f)
+            (else (miller-rabin-aux n (+ a 1)))))
+    (miller-rabin-aux n 2))
+
+(map miller-rabin carmichael-numbers)
+
+;; 1.29
+
+(define (sum a term next b)
+  (if (> a b)
+      0
+      (+ (term a) (sum (next a) term next b))))
+
+;; Function to test that the sum function works
+
+(define (inc x)
+  (+ x 1))
+
+(define (easy-sum a b)
+  (define (identity x) x)
+  (sum a identity inc b))
+
+(define (simpsons-rule f a b n)
+  (define h (/ (- b a) n))
+  (define (simpsons-f k)
+    (let ((mult (cond ((= k 0) 1)
+                      ((= k n) 1)
+                      ((even? k) 2)
+                      (else 4))))
+      (* mult (f (+ a (* k h))))))
+  (define (next s)
+    (+ s 1))
+  (* (/ h 3) (sum 0 simpsons-f next n)))
+
+;; 1.30
+
+(define (sum-iter term a next b)
+  (define (iter a result)
+    (if (> a b) result
+        (iter (next a) (+ result (term a)))))
+  (iter a 0))
+
+(define (easy-sum-iter a b)
+  (define (identity x) x)
+  (sum-iter identity a inc b))
+
+;; 1.31
+
+(define (product term a next b)
+  (if (> a b) 1
+      (* (term a) (product term (next a) next b))))
+
+(define (product-iter term a next b)
+  (define (iter a result)
+    (if (> a b) result
+        (iter (next a) (* (term a) result))))
+  (iter a 1))
+
+(define (factorial a b)
+  (define (identity a) a)
+  (product identity a inc b))
+
+(define (factorial-iter a b)
+  (define (identity a) a)
+  (product-iter identity a inc b))
+
+(define (approx-pi n)
+  (define (fast-term n)
+    (if (even? n)
+        (/ (+ n 2) (+ n 1))
+        (/ (+ n 1) (+ n 2))))
+  (define (term x)
+    (/ (* 2 (+ (ceiling (/ x 2)) 1))
+       (+ (* 2 (ceiling (/ (+ x 1) 2))) 1)))
+  (product fast-term 1 inc n))
+
+;; 1.32
+
+(define (accumulate combiner null-value term a next b)
+  (if (> a b) null-value
+      (combiner (term a) (accumulate combiner null-value term (next a) next b))))
+
+(define (accumulate-iter combiner null-value term a next b)
+  (define (iter a result)
+    (if (> a b) result
+        (iter (next a) (combiner a result))))
+  (iter a null-value))
+
+(define (sum-acc term a next b)
+  (accumulate + 0 term a next b))
+
+(define (product-acc term a next b)
+  (accumulate * 1 term a next b))
+
+;; 1.33
+
+(define (filtered-accumulate combiner null-value term a next b filter)
+  (if (> a b) null-value
+      (if (filter a)
+          (combiner (term a) (filtered-accumulate combiner null-value term (next a) next b filter))
+          (combiner null-value (filtered-accumulate combiner null-value term (next a) next b filter)))))
+
+(define (sum-prime a b)
+  (filtered-accumulate + 0 identity a inc b prime?))
+
+(define (rel-prime n)
+  (define (relative-prime x)
+    (= (gcd x n) 1))
+  (filtered-accumulate * 1 identity 1 inc n relative-prime))
+
+;; 1.34
+
+(define (f_34 g)
+  (g 2))
+
+;; 1.35
+
+(define (fixed-point f guess)
+  (define (good-enough? estimate previous)
+    (< (abs (- estimate previous)) 0.000001))
+  (let ((next (f guess)))
+    (if (good-enough? next guess) next
+        (fixed-point f next))))
+
+(define (average a b)
+  (/ (+ a b) 2))
+
+(define (fixed-point-square x)
+  (fixed-point (lambda (y) (average y (/ x y))) 1.0))
+
+(define (fixed-point-phi)
+  (fixed-point (lambda (y) (+ 1 (/ 1 y))) 0.1))
+
+;; 1.36
+
+(define (logged-fixed-point f guess)
+  (define (good-enough? estimate previous)
+    (< (abs (- estimate previous)) 0.000001))
+  (let ((next (f guess)))
+    (display next)
+    (newline)
+    (if (good-enough? next guess) next
+        (logged-fixed-point f next))))
+
+(define (x-power-x y)
+  (logged-fixed-point (lambda (x) (average x (/ (log y) (log x)))) 10.0))
