@@ -3,6 +3,7 @@
 ;; exercise solutions for the first chapter of sicp:
 
 ;; 1.1)
+
 (+ 5 3 4) ;; => 12
 (- 9 1) ;; => 8
 (/ 6 2) ;; => 3
@@ -602,3 +603,24 @@
 
 (define (x-power-x y)
   (logged-fixed-point (lambda (x) (average x (/ (log y) (log x)))) 10.0))
+
+;; 1.37
+
+(define (cont-frac n d k)
+  (define (cont-frac-r i)
+    (if (= i k) (/ (n i) (d i))
+        (/ (n i) (+ (d i) (cont-frac-r (+ i 1))))))
+  (define (cont-frac-i i cont)
+    (if (= i k) cont
+        (cont-frac-i (+ i 1) (/ (n i) (+ (d i) cont)))))
+  (cont-frac-r 1))
+
+;; 1.38
+
+(define (euler-expansion k)
+  (define (d x)
+    (if (not (= 0 (remainder (+ x 1) 3)))
+        1
+        (* 2 (/ (+ x 1) 3))))
+  (+ 2 (cont-frac (lambda (x) 1)
+             d k)))
