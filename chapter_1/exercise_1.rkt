@@ -624,3 +624,13 @@
         (* 2 (/ (+ x 1) 3))))
   (+ 2 (cont-frac (lambda (x) 1)
              d k)))
+
+;; 1.39
+
+(define (tan-cf x k)
+  (define (n i)
+    (if (= i 1) x (* -1 (* x x))))
+  (define (d i)
+    (if (= i 1) 1
+        (+ (* 2 (- i 1)) 1)))
+  (cont-frac n d k))
